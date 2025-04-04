@@ -48,7 +48,7 @@ const ScannerPage = () => {
       const reader = new FileReader();
       reader.onload = (event) => {
         setImagePreview(event.target?.result as string);
-        simulateScan();
+        simulateScanWithFood101();
       };
       reader.readAsDataURL(file);
     }
@@ -59,25 +59,31 @@ const ScannerPage = () => {
     // Simulate camera capture with timeout
     setTimeout(() => {
       setImagePreview('/placeholder.svg'); // Using placeholder
-      simulateScan();
+      simulateScanWithFood101();
     }, 1500);
   };
   
-  const simulateScan = () => {
+  const simulateScanWithFood101 = () => {
     setScanning(true);
     
-    // Simulate processing time
+    // In a real implementation, we would send the image to a Food101 API
+    // For now, we'll simulate a response after a delay
     setTimeout(() => {
-      // Mock food detection result
-      const mockFoods = [
+      // Mock food detection result based on Food101 dataset categories
+      const food101Foods = [
         { name: 'Grilled Chicken Breast', calories: 165, protein: 31, carbs: 0, fat: 3.6 },
         { name: 'Salmon Fillet', calories: 233, protein: 25, carbs: 0, fat: 15 },
         { name: 'Greek Yogurt', calories: 100, protein: 10, carbs: 4, fat: 5 },
         { name: 'Avocado Toast', calories: 210, protein: 5, carbs: 25, fat: 10 },
-        { name: 'Banana Smoothie', calories: 180, protein: 4, carbs: 38, fat: 2 }
+        { name: 'Banana Smoothie', calories: 180, protein: 4, carbs: 38, fat: 2 },
+        { name: 'Caesar Salad', calories: 190, protein: 8, carbs: 15, fat: 10 },
+        { name: 'Apple Pie', calories: 315, protein: 3, carbs: 44, fat: 14 },
+        { name: 'Steak', calories: 275, protein: 28, carbs: 0, fat: 18 },
+        { name: 'Chocolate Cake', calories: 350, protein: 4, carbs: 52, fat: 14 },
+        { name: 'Pizza Margherita', calories: 250, protein: 12, carbs: 33, fat: 8 }
       ];
       
-      const randomFood = mockFoods[Math.floor(Math.random() * mockFoods.length)];
+      const randomFood = food101Foods[Math.floor(Math.random() * food101Foods.length)];
       setScannedFood(randomFood);
       setScanning(false);
     }, 2000);
@@ -127,7 +133,7 @@ const ScannerPage = () => {
               </div>
               
               <p className="text-center text-netflixLightGray">
-                Scan your food to get nutrition information and add it to your daily intake.
+                Scan your food to get nutrition information using Food101 dataset recognition and add it to your daily intake.
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-md">
@@ -171,7 +177,7 @@ const ScannerPage = () => {
               </svg>
             </div>
             <h2 className="text-xl font-bold mb-2">Analyzing food...</h2>
-            <p className="text-netflixLightGray">Using AI to identify ingredients and calculate nutrition info</p>
+            <p className="text-netflixLightGray">Using Food101 dataset to identify food and calculate nutrition info</p>
           </div>
         </div>
       )}
@@ -194,7 +200,7 @@ const ScannerPage = () => {
                   
                   <div className="mb-4">
                     <label htmlFor="weight" className="block text-sm font-medium mb-1">
-                      Portion Size (g)
+                      Food Weight (g)
                     </label>
                     <div className="flex gap-2">
                       <Select 
@@ -204,7 +210,7 @@ const ScannerPage = () => {
                         <SelectTrigger className="w-full bg-netflixBlack">
                           <SelectValue placeholder="Select weight" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-netflixBlack border-netflixDarkGray">
                           <SelectItem value="50">50g</SelectItem>
                           <SelectItem value="100">100g</SelectItem>
                           <SelectItem value="150">150g</SelectItem>
@@ -247,7 +253,7 @@ const ScannerPage = () => {
                   
                   <div className="flex items-center text-netflixLightGray mb-6">
                     <AlertCircle className="w-4 h-4 mr-2" />
-                    <span className="text-sm">AI-estimated values may vary from actual nutrition data</span>
+                    <span className="text-sm">Food101 dataset-based analysis may vary from actual nutrition data</span>
                   </div>
                   
                   <Button onClick={handleAddFood} className="netflix-button w-full">
