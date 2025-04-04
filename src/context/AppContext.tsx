@@ -104,6 +104,9 @@ interface AppContextType {
   resetProgress: () => void;
 }
 
+// Hugging Face API Key
+const HF_API_KEY = "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"; 
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -383,6 +386,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     toast("Progress reset for today");
   };
 
+  // Generate plan using Hugging Face API
+  const generatePlanWithAPI = async () => {
+    if (!profile) {
+      throw new Error("Profile is required to generate a plan");
+    }
+
+    // Create a detailed profile description for the API
+    const profileDescription = `
+      Generate a detailed fitness plan for a ${profile.age} year old ${profile.gender} 
+      with height ${profile.height}cm and weight ${profile.weight}kg.
+      Their goal is to ${profile.goal === 'lose' ? 'lose weight' : profile.goal === 'gain' ? 'gain muscle' : 'maintain weight'}.
+      They prefer ${profile.trainingStyle} training.
+      Daily calorie target: ${calculateDailyCalories()} calories.
+      Daily macro targets: Protein: ${calculateMacroTargets().protein}g, Carbs: ${calculateMacroTargets().carbs}g, Fat: ${calculateMacroTargets().fat}g.
+      
+      Please provide:
+      1. A weekly workout plan with 3 different workouts (for Monday, Wednesday, Friday).
+      2. Each workout should have a name, 4 exercises (name, sets, reps, rest time), and duration.
+      3. A daily meal plan with 4 meals (breakfast, lunch, snack, dinner) including name, calories, and macros.
+      
+      Return the data in JSON format only, no explanations needed.
+    `;
+
+    try {
+      const response = await fetch("https://api-inference.huggingface.co/models/meta-llama/Llama-2-70b-chat-hf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${HF_API_KEY}`
+        },
+        body: JSON.stringify({
+          inputs: profileDescription,
+          parameters: {
+            max_new_tokens: 2000,
+            temperature: 0.7,
+            return_full_text: false
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      let planData;
+      
+      try {
+        // Try to parse the response as JSON
+        const responseText = data[0].generated_text;
+        
+        // Look for JSON in the response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          planData = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error("No JSON found in response");
+        }
+      } catch (error) {
+        console.error("Failed to parse API response:", error);
+        throw new Error("Failed to parse the workout and meal plan data");
+      }
+      
+      return planData;
+    } catch (error) {
+      console.error("API request error:", error);
+      throw error;
+    }
+  };
+
   // Function to generate workout and meal plans based on profile
   const generatePlans = async () => {
     if (!profile) {
@@ -392,22 +465,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setIsLoading(true);
     
-    // Normally here we'd call OpenAI API
-    // For now, let's create mock data to simulate the response
-    
     try {
-      // Simulating API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Try to use the Hugging Face API first
+      let planData;
+      try {
+        planData = await generatePlanWithAPI();
+      } catch (apiError) {
+        console.error("API Error:", apiError);
+        toast.error("API error, falling back to generated plans");
+        // Fall back to generated plans if API fails
+        planData = null;
+      }
       
-      // Generate mock workout plan based on training style
-      const mockWorkoutPlan: Workout[] = generateMockWorkoutPlan(profile.trainingStyle);
-      setWorkoutPlan(mockWorkoutPlan);
+      let workoutPlanData: Workout[];
+      let mealPlanData: Meal[];
       
-      // Generate mock meal plan based on calculated calories and macros
-      const calorieTarget = calculateDailyCalories();
-      const macroTargets = calculateMacroTargets();
-      const mockMealPlan: Meal[] = generateMockMealPlan(calorieTarget, macroTargets);
-      setMealPlan(mockMealPlan);
+      if (planData && planData.workoutPlan && planData.mealPlan) {
+        // Use the API-generated plan
+        workoutPlanData = planData.workoutPlan;
+        mealPlanData = planData.mealPlan;
+      } else {
+        // Fall back to local generation
+        workoutPlanData = generateMockWorkoutPlan(profile.trainingStyle);
+        
+        const calorieTarget = calculateDailyCalories();
+        const macroTargets = calculateMacroTargets();
+        mealPlanData = generateMockMealPlan(calorieTarget, macroTargets);
+      }
+      
+      setWorkoutPlan(workoutPlanData);
+      setMealPlan(mealPlanData);
       
       toast.success("Your personalized workout and meal plans are ready!");
     } catch (error) {

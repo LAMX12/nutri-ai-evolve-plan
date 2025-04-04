@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface FoodItem {
   name: string;
@@ -23,7 +24,8 @@ const ScannerPage = () => {
   const [scanning, setScanning] = useState(false);
   const [scannedFood, setScannedFood] = useState<FoodItem | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-
+  const [foodWeight, setFoodWeight] = useState<string>("100");
+  
   if (!isProfileComplete) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -83,13 +85,34 @@ const ScannerPage = () => {
   
   const handleAddFood = () => {
     if (scannedFood) {
-      updateCalorieIntake(scannedFood.calories);
-      updateMacroIntake(scannedFood.protein, scannedFood.carbs, scannedFood.fat);
+      // Calculate calories and macros based on the weight
+      const weightMultiplier = parseInt(foodWeight) / 100;
+      const adjustedCalories = Math.round(scannedFood.calories * weightMultiplier);
+      const adjustedProtein = Math.round(scannedFood.protein * weightMultiplier * 10) / 10;
+      const adjustedCarbs = Math.round(scannedFood.carbs * weightMultiplier * 10) / 10;
+      const adjustedFat = Math.round(scannedFood.fat * weightMultiplier * 10) / 10;
       
-      toast.success(`Added ${scannedFood.name} to your daily intake`);
+      updateCalorieIntake(adjustedCalories);
+      updateMacroIntake(adjustedProtein, adjustedCarbs, adjustedFat);
+      
+      toast.success(`Added ${scannedFood.name} (${foodWeight}g) to your daily intake`);
       navigate('/progress');
     }
   };
+
+  const getWeightAdjustedNutrition = () => {
+    if (!scannedFood) return null;
+    
+    const weightMultiplier = parseInt(foodWeight) / 100;
+    return {
+      calories: Math.round(scannedFood.calories * weightMultiplier),
+      protein: Math.round(scannedFood.protein * weightMultiplier * 10) / 10,
+      carbs: Math.round(scannedFood.carbs * weightMultiplier * 10) / 10,
+      fat: Math.round(scannedFood.fat * weightMultiplier * 10) / 10
+    };
+  };
+
+  const adjustedNutrition = getWeightAdjustedNutrition();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -169,24 +192,55 @@ const ScannerPage = () => {
                 <div>
                   <h2 className="text-2xl font-bold mb-4">{scannedFood.name}</h2>
                   
+                  <div className="mb-4">
+                    <label htmlFor="weight" className="block text-sm font-medium mb-1">
+                      Portion Size (g)
+                    </label>
+                    <div className="flex gap-2">
+                      <Select 
+                        value={foodWeight} 
+                        onValueChange={setFoodWeight}
+                      >
+                        <SelectTrigger className="w-full bg-netflixBlack">
+                          <SelectValue placeholder="Select weight" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="50">50g</SelectItem>
+                          <SelectItem value="100">100g</SelectItem>
+                          <SelectItem value="150">150g</SelectItem>
+                          <SelectItem value="200">200g</SelectItem>
+                          <SelectItem value="250">250g</SelectItem>
+                          <SelectItem value="300">300g</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        value={foodWeight}
+                        onChange={(e) => setFoodWeight(e.target.value)}
+                        className="netflix-input w-24"
+                        min="1"
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="space-y-4 mb-6">
                     <div className="bg-netflixBlack p-4 rounded-lg flex justify-between items-center">
                       <span className="font-medium">Calories</span>
-                      <span className="text-xl font-bold">{scannedFood.calories} kcal</span>
+                      <span className="text-xl font-bold">{adjustedNutrition?.calories} kcal</span>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-4">
                       <div className="bg-netflixBlack p-3 rounded-lg text-center">
                         <h4 className="text-xs text-netflixLightGray mb-1">Protein</h4>
-                        <span className="block text-lg font-bold">{scannedFood.protein}g</span>
+                        <span className="block text-lg font-bold">{adjustedNutrition?.protein}g</span>
                       </div>
                       <div className="bg-netflixBlack p-3 rounded-lg text-center">
                         <h4 className="text-xs text-netflixLightGray mb-1">Carbs</h4>
-                        <span className="block text-lg font-bold">{scannedFood.carbs}g</span>
+                        <span className="block text-lg font-bold">{adjustedNutrition?.carbs}g</span>
                       </div>
                       <div className="bg-netflixBlack p-3 rounded-lg text-center">
                         <h4 className="text-xs text-netflixLightGray mb-1">Fat</h4>
-                        <span className="block text-lg font-bold">{scannedFood.fat}g</span>
+                        <span className="block text-lg font-bold">{adjustedNutrition?.fat}g</span>
                       </div>
                     </div>
                   </div>
